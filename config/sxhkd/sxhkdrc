@@ -1,0 +1,158 @@
+#!/bin/sh
+
+# ╭──────────────────────────────────────────────╮
+# │        Escritorios y movimiento de ventanas  │
+# ╰──────────────────────────────────────────────╯
+
+# Cambiar a escritorio 1–7
+super + {1-7}
+    bspc desktop -f ^{1-7}
+
+# Mover ventana al escritorio 1–7
+super + shift + {1-7}
+    bspc node -d ^{1-7}
+
+# ╭──────────────────────────────────────────────╮
+# │                Aplicaciones                  │
+# ╰──────────────────────────────────────────────╯
+
+# Terminal
+super + Return
+    kitty
+
+# Rofi
+super + d
+    rofi -show drun -theme $HOME/.config/rofi/config.rasi
+
+# ╭──────────────────────────────────────────────╮
+# │                 Capturas                     │
+# ╰──────────────────────────────────────────────╯
+
+# Captura completa
+super + s
+    flameshot full
+
+# Captura con selector
+super + shift + s
+    flameshot gui
+
+# ╭──────────────────────────────────────────────╮
+# │       Apagar, reiniciar, cerrar sesión       │
+# ╰──────────────────────────────────────────────╯
+
+ctrl + super + alt + p
+    systemctl poweroff
+
+ctrl + super + alt + r
+    systemctl reboot
+
+ctrl + super + alt + q
+    bspc quit
+
+ctrl + super + alt + l
+    betterlockscreen -l
+
+ctrl + super + alt + k
+    xkill
+
+# ╭──────────────────────────────────────────────╮
+# │      Control de brillo y volumen             │
+# ╰──────────────────────────────────────────────╯
+
+XF86MonBrightnessUp
+    brightnessctl set +5%
+
+XF86MonBrightnessDown
+    brightnessctl set 5%-
+
+XF86AudioRaiseVolume
+    pactl set-sink-volume @DEFAULT_SINK@ +5%
+
+XF86AudioLowerVolume
+    pactl set-sink-volume @DEFAULT_SINK@ -5%
+
+XF86AudioMute
+    pactl set-sink-mute @DEFAULT_SINK@ toggle
+
+XF86AudioMicMute
+    pactl set-source-mute @DEFAULT_SOURCE@ toggle
+
+# ╭──────────────────────────────────────────────╮
+# │                 BSPWM Core                   │
+# ╰──────────────────────────────────────────────╯
+
+# Recargar sxhkd
+super + Escape
+    pkill -USR1 -x sxhkd
+
+# Recargar BSPWM
+super + alt + r
+    bspc wm -r
+
+# Cerrar ventana
+super + x
+    bspc node -c
+
+# Matar ventana
+super + shift + x
+    bspc node -k
+
+# ╭──────────────────────────────────────────────╮
+# │        Navegación entre escritorios          │
+# ╰──────────────────────────────────────────────╯
+
+super + Left
+    bspc desktop -f prev
+
+super + Right
+    bspc desktop -f next
+
+# ╭──────────────────────────────────────────────╮
+# │        Navegación entre ventanas             │
+# ╰──────────────────────────────────────────────╯
+
+# Foco con hjkl
+super + {h,j,k,l}
+    bspc node -f {west,south,north,east}
+
+# Mover ventana con hjkl
+super + shift + {h,j,k,l}
+    bspc node -s {west,south,north,east}
+
+# Rotar árbol
+ctrl + Tab
+    bspc node @/ -R 90
+
+# ╭──────────────────────────────────────────────╮
+# │         Layout / Estado de ventanas          │
+# ╰──────────────────────────────────────────────╯
+
+# Tiled / Floating / Fullscreen
+super + {t,f,m}
+    bspc node -t {tiled,floating,fullscreen}
+
+# ╭──────────────────────────────────────────────╮
+# │           Media (playerctl)                  │
+# ╰──────────────────────────────────────────────╯
+
+XF86AudioPlay
+    playerctl play-pause
+
+XF86AudioNext
+    playerctl next
+
+XF86AudioPrev
+    playerctl previous
+
+XF86AudioStop
+    playerctl stop
+
+# ╭──────────────────────────────────────────────╮
+# │           Wifi / Bluetooth                   │
+# ╰──────────────────────────────────────────────╯
+
+XF86WLAN
+    rfkill toggle wifi
+
+XF86Bluetooth
+    rfkill toggle bluetooth
