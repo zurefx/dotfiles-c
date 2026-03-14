@@ -122,10 +122,66 @@ install_apt() {
     pipewire \
     pipewire-pulse \
     wireplumber \
-    network-manager \
-    exa 2>/dev/null || true
+    network-manager
 
   ok "Paquetes apt instalados"
+
+  # ── bat: en Kali/Debian el binario se llama batcat → symlink
+  if command -v batcat &>/dev/null; then
+    sudo ln -sf "$(which batcat)" /usr/local/bin/bat
+    ok "bat → symlink /usr/local/bin/bat → batcat"
+  elif command -v bat &>/dev/null; then
+    ok "bat ya disponible directamente"
+  else
+    warn "bat/batcat no encontrado — instálalo manualmente"
+  fi
+}
+
+# ============================================================
+# EZA (reemplazo de ls — no está en apt de Kali por defecto)
+# ============================================================
+install_eza() {
+  step "Instalando eza"
+
+  if command -v eza &>/dev/null; then
+    ok "eza ya instalado — skipping"
+    return
+  fi
+
+  # Método 1: repo oficial de eza para Debian/Ubuntu
+  info "Añadiendo repo oficial de eza..."
+  sudo mkdir -p /etc/apt/keyrings
+
+  if wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
+      | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg 2>/dev/null; then
+
+    echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+      | sudo tee /etc/apt/sources.list.d/gierens.list > /dev/null
+    sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+    sudo apt update -y 2>/dev/null
+    if sudo apt install -y eza 2>/dev/null; then
+      ok "eza instalado via repo oficial"
+      return
+    fi
+  fi
+
+  # Método 2: binario precompilado desde GitHub releases
+  warn "Repo falló — descargando binario desde GitHub releases..."
+  EZA_URL=$(curl -s https://api.github.com/repos/eza-community/eza/releases/latest \
+    | grep "browser_download_url" \
+    | grep "eza_x86_64-unknown-linux-gnu.tar.gz" \
+    | cut -d '"' -f 4 | head -1)
+
+  if [[ -n "$EZA_URL" ]]; then
+    tmpdir="$(mktemp -d)"
+    curl -Lo "$tmpdir/eza.tar.gz" "$EZA_URL"
+    tar -xzf "$tmpdir/eza.tar.gz" -C "$tmpdir"
+    sudo install -m 755 "$tmpdir/eza" /usr/local/bin/eza
+    rm -rf "$tmpdir"
+    ok "eza instalado en /usr/local/bin/eza"
+  else
+    warn "No se pudo instalar eza — instálalo luego con: cargo install eza"
+  fi
 }
 
 # ============================================================
@@ -369,25 +425,50 @@ setup_services() {
   sudo systemctl start  NetworkManager 2>/dev/null || true
 
   sudo systemctl enable lxdm 2>/dev/null && ok "lxdm habilitado" || warn "lxdm no disponible"
-
-  # .xinitrc para startx
-  echo "exec bspwm" > "$HOME/.xinitrc"
-  ok ".xinitrc configurado con bspwm"
 }
 
 # ============================================================
-# XINITRC / XSESSION
+# BSPWM XSESSION — para que aparezca en el login manager
 # ============================================================
-setup_xinit() {
-  step "Configurando xinit"
+setup_xsession() {
+  step "Registrando bspwm como sesión de escritorio"
 
+  sudo mkdir -p /usr/share/xsessions
+
+  # Wrapper script — lxdm/lightdm necesita un Exec que arranque bspwm correctamente
+  sudo tee /usr/local/bin/bspwm-session > /dev/null << 'EOF'
+#!/bin/sh
+[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
+exec bspwm
+EOF
+  sudo chmod +x /usr/local/bin/bspwm-session
+
+  # .desktop — aparece en el selector de sesión del login manager
+  sudo tee /usr/share/xsessions/bspwm.desktop > /dev/null << 'EOF'
+[Desktop Entry]
+Name=bspwm
+Comment=Binary Space Partitioning Window Manager
+Exec=/usr/local/bin/bspwm-session
+TryExec=bspwm
+Type=XSession
+DesktopNames=bspwm
+EOF
+  ok "bspwm.desktop creado → /usr/share/xsessions/bspwm.desktop"
+
+  # .xinitrc para startx desde TTY
   cat > "$HOME/.xinitrc" << 'EOF'
 #!/bin/sh
-# Lanzar bspwm
+[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
 exec bspwm
 EOF
   chmod +x "$HOME/.xinitrc"
-  ok ".xinitrc listo"
+
+  # .xsession — fallback para DMs que lo leen en vez del .desktop
+  cp "$HOME/.xinitrc" "$HOME/.xsession"
+  chmod +x "$HOME/.xsession"
+
+  ok ".xinitrc y .xsession configurados"
+  ok "Al reiniciar verás 'bspwm' en el selector de sesión del login manager"
 }
 
 # ============================================================
@@ -465,6 +546,7 @@ main() {
   banner
 
   install_apt
+  install_eza
   install_fastfetch
   setup_zsh
   setup_p10k
@@ -473,17 +555,18 @@ main() {
   patch_zshrc
   setup_shell
   setup_services
-  setup_xinit
+  setup_xsession
   setup_ssh
 
   banner
   echo -e "${GREEN}${BOLD}"
   echo "  ✔  Instalación completa 🤙"
-  echo ""
-  echo -e "${NC}${CYAN}  Próximos pasos:${NC}"
-  echo "  1. Reinicia o ejecuta: exec zsh"
-  echo "  2. Ejecuta p10k configure  (si no se lanza solo)"
-  echo "  3. Inicia sesión con: startx  o desde lxdm"
+  echo -e "${NC}"
+  echo -e "${CYAN}  Próximos pasos:${NC}"
+  echo "  1. Reinicia el sistema"
+  echo "  2. En el login manager (lxdm) → click en 'Sesión' → selecciona ${BOLD}bspwm${NC}"
+  echo "  3. O desde TTY: startx"
+  echo "  4. Si p10k no se lanza solo: p10k configure"
   echo ""
   echo -e "${YELLOW}  Repo: ${DOTFILES_REPO}${NC}"
   echo ""
