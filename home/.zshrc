@@ -1,5 +1,11 @@
 export ZSH_DISABLE_COMPFIX=true
 
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt HIST_IGNORE_DUPS
+setopt SHARE_HISTORY
+
 source ~/.powerlevel10k/powerlevel10k.zsh-theme
 
 alias cat="batcat --theme='Solarized (dark)'"
