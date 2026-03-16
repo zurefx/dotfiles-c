@@ -136,11 +136,15 @@ super + ctrl + r
 # ╰──────────────────────────────────────────────╯
 
 # Tiled / Floating / Fullscreen
-super + {t,f,m}
-    bspc node -t {tiled,floating,fullscreen}
+super + {t,m}
+    bspc node -t {tiled,fullscreen}
 
-# Toggle monocle (todas las ventanas ocupan pantalla completa en rotación)
-super + ctrl + f
+# Floating
+super + shift + f
+    bspc node -t floating
+
+# Toggle monocle / fullscreen (super + f)
+super + f
     bspc desktop -l next
 
 # ╭──────────────────────────────────────────────╮
